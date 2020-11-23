@@ -101,6 +101,7 @@ namespace ConsoleApp
             try
             {
                 var revenueUnits = (await GetAsync<GetAllResponse<RevenueUnit>>(GetRevenueUnitsUrl)).DataUnits;
+                // Nice approach, but difficult to implement due to the fact, that input makes async call to end
                 // foreach (var unit in revenueUnits)
                 // {
                 //     Console.WriteLine(unit.Id + " - " + unit.Name);
