@@ -72,36 +72,10 @@ namespace ConsoleApp
                     _departmentId = (await CreateDepartment()).Id;
                     break;
                 case 2:
-                    var groupName = "";
-                    do
-                    {
-                        Console.WriteLine("Please enter a name for your employee group");
-                        groupName = Console.ReadLine();
-                    } while (groupName?.Trim().Length == 0);
-                    
-                    _employeeGroupId = (await CreateEmployeeGroup(groupName)).Id;
+                    _employeeGroupId = (await CreateEmployeeGroup()).Id;
                     break;
                 case 3:
-                    var userName = "";
-                    do
-                    {
-                        Console.WriteLine("Please enter your username");
-                        userName = Console.ReadLine();
-                    } while (userName?.Trim().Length == 0);
-                    
-                    if (_departmentId == 0)
-                        (_departmentId, wasCancelled) =
-                            UserInputHelper.GetUserIntInput("Please enter department ID value (or X to exit)", 1,
-                                int.MaxValue, "x");
-                    if (wasCancelled) break;
-                    
-                    if (_employeeGroupId == 0)
-                        (_employeeGroupId, wasCancelled) =
-                            UserInputHelper.GetUserIntInput("Please enter employee group ID value (or X to exit)", 1,
-                                int.MaxValue, "x");
-                    if (wasCancelled) break;
-                    
-                    var employee = await CreateEmployee(_departmentId, _employeeGroupId, userName);
+                    var employee = await CreateEmployee();
                     break;
                 case 4:
                     var revenue = await CreateRevenue();
@@ -127,10 +101,15 @@ namespace ConsoleApp
             try
             {
                 var revenueUnits = (await GetAsync<GetAllResponse<RevenueUnit>>(GetRevenueUnitsUrl)).DataUnits;
-                // Console.WriteLine(revenueUnits);
+                // foreach (var unit in revenueUnits)
+                // {
+                //     Console.WriteLine(unit.Id + " - " + unit.Name);
+                // }
+                //
                 // Console.WriteLine("Please enter the revenue unit ID: ");
                 // var unitId = Console.ReadLine();
                 // if (String.IsNullOrEmpty(unitId)) return null;
+                //
                 // revenueDto.RevenueUnitId = int.Parse(unitId);
                 revenueDto.RevenueUnitId = revenueUnits[^1].Id;
                 return (await PostJsonAsync<PostResponse<Revenue>>(CreateRevenueUrl, JsonConvert.SerializeObject(revenueDto))).Data;
@@ -164,8 +143,28 @@ namespace ConsoleApp
             }
         }
 
-        static async Task<Employee> CreateEmployee(int departmentId, int employeeGroupId, String username)
+        static async Task<Employee> CreateEmployee()
         {
+            var username = "";
+            bool wasCancelled = false;
+            do
+            {
+                Console.WriteLine("Please enter your username");
+                username = Console.ReadLine();
+            } while (username?.Trim().Length == 0);
+            
+            if (_departmentId == 0)
+                (_departmentId, wasCancelled) =
+                    UserInputHelper.GetUserIntInput("Please enter department ID value (or X to exit)", 1,
+                        int.MaxValue, "x");
+            if (wasCancelled) return null;
+
+            if (_employeeGroupId == 0)
+                (_employeeGroupId, wasCancelled) =
+                    UserInputHelper.GetUserIntInput("Please enter employee group ID value (or X to exit)", 1,
+                        int.MaxValue, "x");
+            if (wasCancelled) return null;
+
             var employeeDto = new CreateEmployeeRequestDto()
             {
                 Gender = Gender.Male.ToString(),
@@ -175,8 +174,8 @@ namespace ConsoleApp
                 FirstName = "Tony",
                 LastName = "Stark",
                 UserName = username,
-                DepartmentIds = new [] { departmentId },
-                EmployeeGroupIds = new [] { employeeGroupId }
+                DepartmentIds = new [] { _departmentId },
+                EmployeeGroupIds = new [] { _employeeGroupId }
             };
 
             try
@@ -207,11 +206,18 @@ namespace ConsoleApp
             return department;
         }
 
-        static async Task<EmployeeGroup> CreateEmployeeGroup(String name)
+        static async Task<EmployeeGroup> CreateEmployeeGroup()
         {
+            var groupName = "";
+            do
+            {
+                Console.WriteLine("Please enter a name for your employee group");
+                groupName = Console.ReadLine();
+            } while (groupName?.Trim().Length == 0);
+            
             var groupDto = new CreateEmployeeGroupRequestDto()
             {
-                Name = name
+                Name = groupName
             };
 
             var group = (await PostJsonAsync<PostResponse<EmployeeGroup>>(CreateEmployeeGroupUrl, 
