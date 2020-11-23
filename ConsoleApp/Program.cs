@@ -115,16 +115,23 @@ namespace ConsoleApp
 
         static async Task<Revenue> CreateRevenue()
         {
+            Console.WriteLine("Please enter the date for the revenue to be created in the format 'YYYY-mm-dd'");
+            var date = Console.ReadLine();
             var revenueDto = new CreateRevenueRequestDto()
             {
                 Description = "POS",
-                Date = "2020-11-20",
+                Date = date,
                 Turnover = 2800.00
             };
 
             try
             {
                 var revenueUnits = (await GetAsync<GetAllResponse<RevenueUnit>>(GetRevenueUnitsUrl)).DataUnits;
+                // Console.WriteLine(revenueUnits);
+                // Console.WriteLine("Please enter the revenue unit ID: ");
+                // var unitId = Console.ReadLine();
+                // if (String.IsNullOrEmpty(unitId)) return null;
+                // revenueDto.RevenueUnitId = int.Parse(unitId);
                 revenueDto.RevenueUnitId = revenueUnits[^1].Id;
                 return (await PostJsonAsync<PostResponse<Revenue>>(CreateRevenueUrl, JsonConvert.SerializeObject(revenueDto))).Data;
             }
@@ -190,8 +197,8 @@ namespace ConsoleApp
         {
             var departmentDto = new CreateDepartmentRequestDto()
             {
-                Name = "Test2",
-                Number = "12"
+                Name = "Test",
+                Number = "123"
             };
 
             var department = (await PostJsonAsync<PostResponse<Department>>(CreateDepartmentUrl, 
