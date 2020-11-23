@@ -59,12 +59,13 @@ namespace ConsoleApp
             Console.WriteLine("1) Create a department");
             Console.WriteLine("2) Create an employee group");
             Console.WriteLine("3) Create an employee");
-            Console.WriteLine("4) Create a revenue record");
+            Console.WriteLine("4) Check out available revenue units");
+            Console.WriteLine("5) Create a revenue record");
             Console.WriteLine("X) Exit");
             Console.WriteLine("--------------------------------");
 
             (userInput, wasCancelled) = UserInputHelper.GetUserIntInput(
-                "Please choose your action (or X to exit): ", 1, 4, "x");
+                "Please choose your action (or X to exit): ", 1, 5, "x");
 
             switch (userInput)
             {
@@ -78,12 +79,31 @@ namespace ConsoleApp
                     var employee = await CreateEmployee();
                     break;
                 case 4:
+                    GetRevenueUnits();
+                    break;
+                case 5:
                     var revenue = await CreateRevenue();
                     Console.WriteLine("Revenue item for revenue unit " + revenue.RevenueUnitId + " was successfully created");
                     break;
                 default:
                     Console.WriteLine("Closing down...");
                     break;
+            }
+        }
+
+        static async void GetRevenueUnits()
+        {
+            try
+            {
+                var revenueUnits = (await GetAsync<GetAllResponse<RevenueUnit>>(GetRevenueUnitsUrl)).DataUnits;
+                foreach (var unit in revenueUnits)
+                {
+                    Console.WriteLine($"Revenue unit {unit.Id} - {unit.Name} for the department {unit.DepartmentId}");
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Exception: " + e.Message);
             }
         }
 
@@ -100,19 +120,15 @@ namespace ConsoleApp
 
             try
             {
-                var revenueUnits = (await GetAsync<GetAllResponse<RevenueUnit>>(GetRevenueUnitsUrl)).DataUnits;
-                // Nice approach, but difficult to implement due to the fact, that input makes async call to end
-                // foreach (var unit in revenueUnits)
-                // {
-                //     Console.WriteLine(unit.Id + " - " + unit.Name);
-                // }
-                //
-                // Console.WriteLine("Please enter the revenue unit ID: ");
-                // var unitId = Console.ReadLine();
-                // if (String.IsNullOrEmpty(unitId)) return null;
-                //
-                // revenueDto.RevenueUnitId = int.Parse(unitId);
-                revenueDto.RevenueUnitId = revenueUnits[^1].Id;
+                var input = "";
+                int unitId = 0;
+                do
+                {
+                    Console.WriteLine("Please enter the revenue unit ID: ");
+                    input = Console.ReadLine();
+                } while (!String.IsNullOrEmpty(input) && !int.TryParse(input, out unitId));
+
+                revenueDto.RevenueUnitId = unitId;
                 return (await PostJsonAsync<PostResponse<Revenue>>(CreateRevenueUrl, JsonConvert.SerializeObject(revenueDto))).Data;
             }
             catch (Exception e)
