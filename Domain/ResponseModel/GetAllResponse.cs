@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using System.Collections.Generic;
+using Domain.Contract;
 
 namespace Domain
 {
@@ -8,6 +9,6 @@ namespace Domain
         [JsonProperty("paging")]
         public Paging Paging { get; set; } = default!;
         [JsonProperty("data")]
-        public List<T> DataUnits { get; set; } = default!;
+        public List<T>? DataUnits { get; set; }
     }
 }

@@ -1,9 +1,10 @@
 ﻿using Newtonsoft.Json;
 using System;
+using Domain.Contract;
 
 namespace Domain
 {
-    public class RevenueUnit
+    public class RevenueUnit : IResponseData
     {
         [JsonProperty("id")]
         public int Id { get; set; }

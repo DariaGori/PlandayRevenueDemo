@@ -7,7 +7,8 @@ namespace Helper
 {
     public class UserInputHelper
     {
-        public static (int input, bool wasCancelled) GetUserIntInput(string prompt, int minValue, int maxValue, string? exitValue = null)
+        public static (int input, bool wasCancelled) GetUserIntInput(string prompt, int minValue, int maxValue, 
+            string? exitValue = null, List<int>? allowedValues = null)
         {
             do
             {
@@ -24,6 +25,12 @@ namespace Helper
                     if (userInt > maxValue || userInt < minValue)
                     {
                         Console.WriteLine($"{inputLine} is not a valid parameter! Please try again");
+                        continue;
+                    }
+
+                    if (allowedValues != null && !allowedValues.Contains(userInt))
+                    {
+                        Console.WriteLine($"ID {userInt} doesn't exist! Please try again");
                     }
                     else
                     {

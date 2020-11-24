@@ -10,6 +10,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
+using Domain.Contract;
 
 namespace ConsoleApp
 {
@@ -20,16 +21,20 @@ namespace ConsoleApp
         private const string AuthorizationUrl = "https://id.planday.com";
         private const string PlandayUrl = "https://openapi.planday.com";
 
-        private const string CreateDepartmentUrl = "hr/v1.0/departments";
+        private const string DepartmentsUrl = "hr/v1.0/departments";
         private const string CreateRevenueUrl = "revenue/v1.0/revenue";
-        private const string GetRevenueUnitsUrl = "revenue/v1.0/revenueunits";
+        private const string RevenueUnitsUrl = "revenue/v1.0/revenueunits";
         private const string CreateEmployeeUrl = "hr/v1.0/employees";
-        private const string CreateEmployeeGroupUrl = "hr/v1.0/employeegroups";
+        private const string EmployeeGroupsUrl = "hr/v1.0/employeegroups";
         private const string RefreshTokenUrl = "connect/token";
-        
+
         private const string AuthorizationGrantType = "refresh_token";
         private static string _accessToken = "";
+        
         private static int _departmentId, _employeeGroupId;
+        private static List<int> _departmentIds = new List<int>();
+        private static List<int> _employeeGroupIds = new List<int>();
+        private static List<int> _revenueUnitIds = new List<int>();
         
         private const string EmailRegexp = @"^[\w!#$%&'*+\-/=?\^_`{|}~]+(\.[\w!#$%&'*+\-/=?\^_`{|}~]+)*" + "@"
                                            + @"((([\-\w]+\.)+[a-zA-Z]{2,4})|(([0-9]{1,3}\.){3}[0-9]{1,3}))$";
@@ -62,15 +67,17 @@ namespace ConsoleApp
             Console.WriteLine("--------------------------------");
             Console.WriteLine("Please select an action: ");
             Console.WriteLine("1) Create a department");
-            Console.WriteLine("2) Create an employee group");
-            Console.WriteLine("3) Create an employee");
-            Console.WriteLine("4) Check out available revenue units");
-            Console.WriteLine("5) Create a revenue record");
+            Console.WriteLine("2) Get available departments");
+            Console.WriteLine("3) Create an employee group");
+            Console.WriteLine("4) Get available employee groups");
+            Console.WriteLine("5) Create an employee");
+            Console.WriteLine("6) Check out available revenue units");
+            Console.WriteLine("7) Create a revenue record");
             Console.WriteLine("X) Exit");
             Console.WriteLine("--------------------------------");
 
             (userInput, _) = UserInputHelper.GetUserIntInput(
-                "Please choose your action (or X to exit): ", 1, 5, "x");
+                "Please choose your action (or X to exit): ", 1, 7, "x");
 
             switch (userInput)
             {
@@ -79,18 +86,24 @@ namespace ConsoleApp
                     if (department != null) _departmentId = department.Id;
                     break;
                 case 2:
+                    GetAvailableRecords<Department>(_departmentIds, DepartmentsUrl);
+                    break;
+                case 3:
                     var employeeGroup = await CreateEmployeeGroup();
                     if (employeeGroup != null) _employeeGroupId = employeeGroup.Id;
                     else Console.WriteLine("Employee Group creation was cancelled!");
                     break;
-                case 3:
+                case 4:
+                    GetAvailableRecords<EmployeeGroup>(_employeeGroupIds, EmployeeGroupsUrl);
+                    break;
+                case 5:
                     var employee = await CreateEmployee();
                     if (employee == null) Console.WriteLine("Employee creation was cancelled!");
                     break;
-                case 4:
-                    GetRevenueUnits();
+                case 6:
+                    GetAvailableRecords<RevenueUnit>(_revenueUnitIds, RevenueUnitsUrl);
                     break;
-                case 5:
+                case 7:
                     var revenue = await CreateRevenue();
                     Console.WriteLine(revenue == null ? "Revenue unit creation was cancelled!" : 
                         "Revenue item for revenue unit " + revenue.RevenueUnitId + " was successfully created");
@@ -101,14 +114,22 @@ namespace ConsoleApp
             }
         }
 
-        static async void GetRevenueUnits()
+        static async void GetAvailableRecords<T>(ICollection<int> idList, string url)
+        where T : class, IResponseData
         {
             try
             {
-                var revenueUnits = (await GetAsync<GetAllResponse<RevenueUnit>>(GetRevenueUnitsUrl)).DataUnits;
-                foreach (var unit in revenueUnits)
+                var records = (await GetAsync<GetAllResponse<T>>(url)).DataUnits;
+                if (records == null)
                 {
-                    Console.WriteLine($"Revenue unit {unit.Id} - {unit.Name} for the department {unit.DepartmentId}");
+                    Console.WriteLine("No records found!");
+                    return;
+                }
+                
+                foreach (var record in records)
+                {
+                    Console.WriteLine($"{record.Id} - {record.Name}");
+                    idList.Add(record.Id);
                 }
             }
             catch (Exception e)
@@ -143,7 +164,8 @@ namespace ConsoleApp
             try
             {
                 (revenueDto.RevenueUnitId, wasCancelled) = UserInputHelper.GetUserIntInput(
-                    "Please enter your Revenue Unit ID or 'X' to exit", 0, Int32.MaxValue, "x");
+                    "Please enter your Revenue Unit ID or 'X' to exit", 0, Int32.MaxValue, "x", 
+                    _revenueUnitIds);
                 if (wasCancelled) return null;
                 
                 return (await PostJsonAsync<PostResponse<Revenue>>(CreateRevenueUrl, 
@@ -197,13 +219,13 @@ namespace ConsoleApp
             if (_departmentId == 0)
                 (_departmentId, wasCancelled) =
                     UserInputHelper.GetUserIntInput("Please enter department ID value (or X to exit)", 1,
-                        int.MaxValue, "x");
+                        int.MaxValue, "x", _departmentIds);
             if (wasCancelled) return null;
 
             if (_employeeGroupId == 0)
                 (_employeeGroupId, wasCancelled) =
                     UserInputHelper.GetUserIntInput("Please enter employee group ID value (or X to exit)", 1,
-                        int.MaxValue, "x");
+                        int.MaxValue, "x", _employeeGroupIds);
             if (wasCancelled) return null;
 
             var employeeDto = new CreateEmployeeRequestDto()
@@ -251,7 +273,7 @@ namespace ConsoleApp
                 Number = departmentNumber == null ? null : departmentNumber.ToString()
             };
 
-            var department = (await PostJsonAsync<PostResponse<Department>>(CreateDepartmentUrl, 
+            var department = (await PostJsonAsync<PostResponse<Department>>(DepartmentsUrl, 
                 JsonConvert.SerializeObject(departmentDto))).Data;
             Console.WriteLine("Department has been successfully created with id " + department.Id);
             return department;
@@ -269,7 +291,7 @@ namespace ConsoleApp
                 Name = groupName
             };
 
-            var group = (await PostJsonAsync<PostResponse<EmployeeGroup>>(CreateEmployeeGroupUrl, 
+            var group = (await PostJsonAsync<PostResponse<EmployeeGroup>>(EmployeeGroupsUrl, 
                 JsonConvert.SerializeObject(groupDto))).Data;
             Console.WriteLine("Employee group has been successfully created with id " + group.Id);
             return group;
@@ -358,7 +380,7 @@ namespace ConsoleApp
             var serviceProvider = services.BuildServiceProvider();
             var revealer = serviceProvider.GetService<ISecretRevealer>();
 
-            return revealer?.Reveal();
+            return revealer!.Reveal();
         }
     }
 }
