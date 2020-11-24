@@ -8,6 +8,6 @@ namespace Domain
         [JsonProperty("id")]
         public int Id { get; set; }
         [JsonProperty("name")]
-        public String Name { get; set; }
+        public String Name { get; set; } = default!;
     }
 }

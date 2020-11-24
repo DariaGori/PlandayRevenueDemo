@@ -30,6 +30,12 @@ namespace ConsoleApp
         private const string AuthorizationGrantType = "refresh_token";
         private static string _accessToken;
         private static int _departmentId, _employeeGroupId;
+        
+        private const string EmailRegexp = @"^[\w!#$%&'*+\-/=?\^_`{|}~]+(\.[\w!#$%&'*+\-/=?\^_`{|}~]+)*" + "@"
+                                           + @"((([\-\w]+\.)+[a-zA-Z]{2,4})|(([0-9]{1,3}\.){3}[0-9]{1,3}))$";
+
+        private const string DateRegexp = @"^\d{4}-((0[1-9])|(1[012]))-((0[1-9]|[12]\d)|3[01])$";
+        private const string LiteralSpaceStringRegexp = @"^[0-9A-Za-z ]+$";
 
         static void Main()
         {
@@ -37,6 +43,7 @@ namespace ConsoleApp
             RefreshAccessToken();
             Console.WriteLine("You have successfully gained access to Planday! Press ENTER to continue");
             Console.ReadLine();
+            
             do
             {
                 MainAsync();
@@ -50,8 +57,6 @@ namespace ConsoleApp
 
         static async void MainAsync()
         {
-            bool wasCancelled;
-
             int userInput;
                 
             Console.WriteLine("--------------------------------");
@@ -64,7 +69,7 @@ namespace ConsoleApp
             Console.WriteLine("X) Exit");
             Console.WriteLine("--------------------------------");
 
-            (userInput, wasCancelled) = UserInputHelper.GetUserIntInput(
+            (userInput, _) = UserInputHelper.GetUserIntInput(
                 "Please choose your action (or X to exit): ", 1, 5, "x");
 
             switch (userInput)
@@ -73,17 +78,21 @@ namespace ConsoleApp
                     _departmentId = (await CreateDepartment()).Id;
                     break;
                 case 2:
-                    _employeeGroupId = (await CreateEmployeeGroup()).Id;
+                    var employeeGroup = await CreateEmployeeGroup();
+                    if (employeeGroup != null) _employeeGroupId = employeeGroup.Id;
+                    else Console.WriteLine("Employee Group creation was cancelled!");
                     break;
                 case 3:
                     var employee = await CreateEmployee();
+                    if (employee == null) Console.WriteLine("Employee creation was cancelled!");
                     break;
                 case 4:
                     GetRevenueUnits();
                     break;
                 case 5:
                     var revenue = await CreateRevenue();
-                    Console.WriteLine("Revenue item for revenue unit " + revenue.RevenueUnitId + " was successfully created");
+                    Console.WriteLine(revenue == null ? "Revenue unit creation was cancelled!" : 
+                        "Revenue item for revenue unit " + revenue.RevenueUnitId + " was successfully created");
                     break;
                 default:
                     Console.WriteLine("Closing down...");
@@ -109,27 +118,35 @@ namespace ConsoleApp
 
         static async Task<Revenue> CreateRevenue()
         {
-            Console.WriteLine("Please enter the date for the revenue to be created in the format 'YYYY-mm-dd'");
-            var date = Console.ReadLine();
+            var date = UserInputHelper.GetUserStringInput("Please enter the date the Revenue was generated or '0' to exit", 
+                10, "0", DateRegexp);
+            if (date == "0") return null;
+            
+            var description = UserInputHelper.GetUserStringInput("Please enter a description for the Revenue or '0' to exit", 
+                10, "0");
+            if (description == "0") return null;
+
+            bool wasCancelled;
+            double turnover;
+            (turnover, wasCancelled) = UserInputHelper.GetUserDoubleInput(
+                "Please enter the value for the turnover or 'X' to exit", 0, Double.MaxValue, "x");
+            if (wasCancelled) return null;
+            
             var revenueDto = new CreateRevenueRequestDto()
             {
-                Description = "POS",
+                Description = description,
                 Date = date,
-                Turnover = 2800.00
+                Turnover = turnover
             };
 
             try
             {
-                var input = "";
-                int unitId = 0;
-                do
-                {
-                    Console.WriteLine("Please enter the revenue unit ID: ");
-                    input = Console.ReadLine();
-                } while (!String.IsNullOrEmpty(input) && !int.TryParse(input, out unitId));
-
-                revenueDto.RevenueUnitId = unitId;
-                return (await PostJsonAsync<PostResponse<Revenue>>(CreateRevenueUrl, JsonConvert.SerializeObject(revenueDto))).Data;
+                (revenueDto.RevenueUnitId, wasCancelled) = UserInputHelper.GetUserIntInput(
+                    "Please enter your Revenue Unit ID or 'X' to exit", 0, Int32.MaxValue, "x");
+                if (wasCancelled) return null;
+                
+                return (await PostJsonAsync<PostResponse<Revenue>>(CreateRevenueUrl, 
+                    JsonConvert.SerializeObject(revenueDto))).Data;
             }
             catch (Exception e)
             {
@@ -159,17 +176,23 @@ namespace ConsoleApp
                 Console.WriteLine(e.Message);
             }
         }
-
+        
         static async Task<Employee> CreateEmployee()
         {
-            var username = "";
-            bool wasCancelled = false;
-            do
-            {
-                Console.WriteLine("Please enter your username");
-                username = Console.ReadLine();
-            } while (username?.Trim().Length == 0);
+            var wasCancelled = false;
+
+            var username = UserInputHelper.GetUserStringInput("Please enter your username or '0' to exit", 
+                50, "0", EmailRegexp);
+            if (username == "0") return null;
             
+            var firstName = UserInputHelper.GetUserStringInput("Please enter your first name or '0' to exit", 
+                50, "0", LiteralSpaceStringRegexp);
+            if (firstName == "0") return null;
+            
+            var lastName = UserInputHelper.GetUserStringInput("Please enter your last name or '0' to exit", 
+                50, "0", LiteralSpaceStringRegexp);
+            if (lastName == "0") return null;
+
             if (_departmentId == 0)
                 (_departmentId, wasCancelled) =
                     UserInputHelper.GetUserIntInput("Please enter department ID value (or X to exit)", 1,
@@ -185,11 +208,10 @@ namespace ConsoleApp
             var employeeDto = new CreateEmployeeRequestDto()
             {
                 Gender = Gender.Male.ToString(),
-                PrimaryDepartmentId = null,
+                PrimaryDepartmentId = _departmentId,
                 EmployeeTypeId = null,
-                BirthDate = "2010-11-17",
-                FirstName = "Tony",
-                LastName = "Stark",
+                FirstName = firstName,
+                LastName = lastName,
                 UserName = username,
                 DepartmentIds = new [] { _departmentId },
                 EmployeeGroupIds = new [] { _employeeGroupId }
@@ -211,10 +233,21 @@ namespace ConsoleApp
 
         static async Task<Department> CreateDepartment()
         {
+            var departmentName = UserInputHelper.GetUserStringInput("Please enter your Department name or '0' to exit",
+                50, "0", LiteralSpaceStringRegexp);
+            if (departmentName == "0") return null;
+
+            int? departmentNumber;
+            bool wasCancelled;
+
+            (departmentNumber, wasCancelled) = UserInputHelper.GetUserIntInput(
+                "Please enter a number for your department or 'X' to exit", 0, int.MaxValue, "X");
+            if (wasCancelled) departmentNumber = null;
+
             var departmentDto = new CreateDepartmentRequestDto()
             {
-                Name = "Test",
-                Number = "123"
+                Name = departmentName,
+                Number = departmentNumber == null ? null : departmentNumber.ToString()
             };
 
             var department = (await PostJsonAsync<PostResponse<Department>>(CreateDepartmentUrl, 
@@ -225,12 +258,10 @@ namespace ConsoleApp
 
         static async Task<EmployeeGroup> CreateEmployeeGroup()
         {
-            var groupName = "";
-            do
-            {
-                Console.WriteLine("Please enter a name for your employee group");
-                groupName = Console.ReadLine();
-            } while (groupName?.Trim().Length == 0);
+            var groupName = UserInputHelper.GetUserStringInput(
+                "Please enter the name for the Employee Group or '0' to exit", 50, "0", 
+                LiteralSpaceStringRegexp);
+            if (groupName == "0") return null;
             
             var groupDto = new CreateEmployeeGroupRequestDto()
             {

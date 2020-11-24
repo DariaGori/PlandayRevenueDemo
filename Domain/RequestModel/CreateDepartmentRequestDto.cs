@@ -5,9 +5,8 @@ namespace Domain
 {
     public class CreateDepartmentRequestDto
     {
-        [JsonProperty("name")]
-        public string Name { get; set; }
+        [JsonProperty("name")] public String Name { get; set; } = default!;
         [JsonProperty("number")]
-        public string Number { get; set; }
+        public String? Number { get; set; }
     }
 }

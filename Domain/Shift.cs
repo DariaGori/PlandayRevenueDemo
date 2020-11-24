@@ -14,24 +14,24 @@ namespace Domain
         [JsonProperty("employeeGroupId")]
         public int EmployeeGroupId { get; set; }
         [JsonProperty("positionId")]
-        public int PositionId { get; set; }
+        public int? PositionId { get; set; }
         [JsonProperty("shiftTypeId")]
         public int ShiftTypeId { get; set; }
         [JsonProperty("punchClockShiftId")]
-        public int PunchClockShiftId { get; set; }
+        public int? PunchClockShiftId { get; set; }
         [JsonProperty("date")]
-        public String Date { get; set; }
+        public String Date { get; set; } = default!;
         [JsonProperty("startDateTime")]
-        public String StartDateTime { get; set; }
+        public String? StartDateTime { get; set; }
         [JsonProperty("endDateTime")]
-        public String EndDateTime { get; set; }
+        public String? EndDateTime { get; set; }
         [JsonProperty("comment")]
-        public String Comment { get; set; }
+        public String? Comment { get; set; }
         [JsonProperty("status")]
-        public String Status { get; set; }
+        public String? Status { get; set; }
         [JsonProperty("dateTimeCreated")]
-        public String DateTimeCreated { get; set; }
+        public String DateTimeCreated { get; set; } = default!;
         [JsonProperty("dateTimeModified")]
-        public String DateTimeModified { get; set; }
+        public String? DateTimeModified { get; set; }
     }
 }

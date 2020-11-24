@@ -5,6 +5,6 @@ namespace Domain
     public class PostResponse<T>
     {
         [JsonProperty("data")]
-        public T Data { get; set; }
+        public T Data { get; set; } = default!;
     }
 }

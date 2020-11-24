@@ -9,9 +9,10 @@ namespace Domain
     {
         [JsonProperty("id")]
         public int Id { get; set; }
-        [JsonProperty("name")]
-        public String Name { get; set; }
+
+        [JsonProperty("name")] 
+        public String Name { get; set; } = default!;
         [JsonProperty("number")]
-        public String Number { get; set; }
+        public String? Number { get; set; }
     }
 }

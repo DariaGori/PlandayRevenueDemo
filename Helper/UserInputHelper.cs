@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Helper
 {
     public class UserInputHelper
     {
-        public static (int input, bool wasCancelled) GetUserIntInput(string prompt, int minValue, int maxValue, string? exitValue)
+        public static (int input, bool wasCancelled) GetUserIntInput(string prompt, int minValue, int maxValue, string? exitValue = null)
         {
             do
             {
@@ -36,7 +37,7 @@ namespace Helper
             } while (true);
         }
 
-        public static string GetUserStringInput(string prompt, int maxLength, string? exitValue)
+        public static string GetUserStringInput(string prompt, int maxLength, string? exitValue = null, string? regex = null)
         {
             do
             {
@@ -51,8 +52,20 @@ namespace Helper
                 if (String.IsNullOrWhiteSpace(inputLine))
                 {
                     Console.WriteLine("Empty strings are not allowed. Please try again");
+                    continue;
                 }
-                else if (inputLine.Length > maxLength)
+                
+                if (regex != null)
+                {
+                    Regex rgx = new Regex(regex);
+                    if (!rgx.IsMatch(inputLine!))
+                    {
+                        Console.WriteLine("Your input doesn't match the expected pattern, please try again!");
+                        continue;
+                    }
+                }
+                
+                if (inputLine!.Length > maxLength)
                 {
                     Console.WriteLine("The text is too long. Please try again with smaller blocks");
                 }

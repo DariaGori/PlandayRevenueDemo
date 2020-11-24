@@ -6,12 +6,12 @@ namespace Domain
     public class CreateRevenueRequestDto
     {
         [JsonProperty("description")]
-        public String Description { get; set; }
+        public String Description { get; set; } = default!;
         [JsonProperty("turnover")]
-        public Double Turnover { get; set; }
+        public double Turnover { get; set; }
         [JsonProperty("revenueUnitId")]
         public int RevenueUnitId { get; set; }
         [JsonProperty("date")]
-        public String Date { get; set; }
+        public String Date { get; set; } = default!;
     }
 }

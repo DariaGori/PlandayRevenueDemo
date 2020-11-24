@@ -6,8 +6,8 @@ namespace Domain
     public class BankAccount
     {
         [JsonProperty("registrationNumber")]
-        public String RegistrationNumber { get; set; }
+        public String? RegistrationNumber { get; set; }
         [JsonProperty("accountNumber")]
-        public String AccountNumber { get; set; }
+        public String? AccountNumber { get; set; }
     }
 }

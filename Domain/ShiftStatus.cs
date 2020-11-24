@@ -13,9 +13,6 @@ namespace Domain
         Draft = 5,
         OnDuty = 6,
         PendingSwapAcceptance = 7,
-        PendingApproval = 8,
-        PunchclockStarted = 9,
-        PunchclockFinished = 10,
-        PunchclockApproved = 11
+        PendingApproval = 8
     }
 }
