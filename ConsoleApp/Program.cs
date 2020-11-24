@@ -15,7 +15,7 @@ namespace ConsoleApp
 {
     class Program
     {
-        public static IConfigurationRoot Configuration { get; set; }
+        public static IConfigurationRoot Configuration { get; set; } = default!;
 
         private const string AuthorizationUrl = "https://id.planday.com";
         private const string PlandayUrl = "https://openapi.planday.com";
@@ -28,7 +28,7 @@ namespace ConsoleApp
         private const string RefreshTokenUrl = "connect/token";
         
         private const string AuthorizationGrantType = "refresh_token";
-        private static string _accessToken;
+        private static string _accessToken = "";
         private static int _departmentId, _employeeGroupId;
         
         private const string EmailRegexp = @"^[\w!#$%&'*+\-/=?\^_`{|}~]+(\.[\w!#$%&'*+\-/=?\^_`{|}~]+)*" + "@"
@@ -75,7 +75,8 @@ namespace ConsoleApp
             switch (userInput)
             {
                 case 1:
-                    _departmentId = (await CreateDepartment()).Id;
+                    var department = await CreateDepartment();
+                    if (department != null) _departmentId = department.Id;
                     break;
                 case 2:
                     var employeeGroup = await CreateEmployeeGroup();
@@ -116,7 +117,7 @@ namespace ConsoleApp
             }
         }
 
-        static async Task<Revenue> CreateRevenue()
+        static async Task<Revenue?> CreateRevenue()
         {
             var date = UserInputHelper.GetUserStringInput("Please enter the date the Revenue was generated or '0' to exit", 
                 10, "0", DateRegexp);
@@ -177,7 +178,7 @@ namespace ConsoleApp
             }
         }
         
-        static async Task<Employee> CreateEmployee()
+        static async Task<Employee?> CreateEmployee()
         {
             var wasCancelled = false;
 
@@ -231,7 +232,7 @@ namespace ConsoleApp
             }
         }
 
-        static async Task<Department> CreateDepartment()
+        static async Task<Department?> CreateDepartment()
         {
             var departmentName = UserInputHelper.GetUserStringInput("Please enter your Department name or '0' to exit",
                 50, "0", LiteralSpaceStringRegexp);
@@ -256,7 +257,7 @@ namespace ConsoleApp
             return department;
         }
 
-        static async Task<EmployeeGroup> CreateEmployeeGroup()
+        static async Task<EmployeeGroup?> CreateEmployeeGroup()
         {
             var groupName = UserInputHelper.GetUserStringInput(
                 "Please enter the name for the Employee Group or '0' to exit", 50, "0", 
