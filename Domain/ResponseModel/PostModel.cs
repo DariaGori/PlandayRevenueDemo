@@ -1,8 +1,8 @@
 ﻿using Newtonsoft.Json;
 
-namespace Domain
+namespace Domain.ResponseModel
 {
-    public class PostResponse<T>
+    public class PostModel<T>
     {
         [JsonProperty("data")]
         public T Data { get; set; } = default!;

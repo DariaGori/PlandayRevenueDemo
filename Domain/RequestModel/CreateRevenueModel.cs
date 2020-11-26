@@ -1,9 +1,9 @@
-﻿using Newtonsoft.Json;
-using System;
+﻿using System;
+using Newtonsoft.Json;
 
-namespace Domain
+namespace Domain.RequestModel
 {
-    public class CreateRevenueRequestDto
+    public class CreateRevenueModel
     {
         [JsonProperty("description")]
         public String Description { get; set; } = default!;

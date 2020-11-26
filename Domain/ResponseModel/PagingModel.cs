@@ -1,8 +1,8 @@
 ﻿using Newtonsoft.Json;
 
-namespace Domain
+namespace Domain.ResponseModel
 {
-    public class Paging
+    public class PagingModel
     {
         [JsonProperty("offset")]
         public int Offset { get; set; }      

@@ -11,6 +11,8 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 using Domain.Contract;
+using Domain.RequestModel;
+using Domain.ResponseModel;
 
 namespace ConsoleApp
 {
@@ -119,7 +121,7 @@ namespace ConsoleApp
         {
             try
             {
-                var records = (await GetAsync<GetAllResponse<T>>(url)).DataUnits;
+                var records = (await GetAsync<GetAllModel<T>>(url)).DataUnits;
                 if (records == null)
                 {
                     Console.WriteLine("No records found!");
@@ -154,7 +156,7 @@ namespace ConsoleApp
                 "Please enter the value for the turnover or 'X' to exit", 0, Double.MaxValue, "x");
             if (wasCancelled) return null;
             
-            var revenueDto = new CreateRevenueRequestDto()
+            var revenueDto = new CreateRevenueModel()
             {
                 Description = description,
                 Date = date,
@@ -168,7 +170,7 @@ namespace ConsoleApp
                     _revenueUnitIds);
                 if (wasCancelled) return null;
                 
-                return (await PostJsonAsync<PostResponse<Revenue>>(CreateRevenueUrl, 
+                return (await PostJsonAsync<PostModel<Revenue>>(CreateRevenueUrl, 
                     JsonConvert.SerializeObject(revenueDto))).Data;
             }
             catch (Exception e)
@@ -191,7 +193,7 @@ namespace ConsoleApp
 
             try
             {
-                var authCredentials = await PostUrlEncodedAsync<AuthorizationResponse>(RefreshTokenUrl, content);
+                var authCredentials = await PostUrlEncodedAsync<AuthorizationModel>(RefreshTokenUrl, content);
                 _accessToken = authCredentials.AccessToken;
             }
             catch (Exception e)
@@ -228,7 +230,7 @@ namespace ConsoleApp
                         int.MaxValue, "x", _employeeGroupIds);
             if (wasCancelled) return null;
 
-            var employeeDto = new CreateEmployeeRequestDto()
+            var employeeDto = new CreateEmployeeModel()
             {
                 Gender = Gender.Male.ToString(),
                 PrimaryDepartmentId = _departmentId,
@@ -242,7 +244,7 @@ namespace ConsoleApp
 
             try
             {
-                var employee = (await PostJsonAsync<PostResponse<Employee>>(CreateEmployeeUrl, 
+                var employee = (await PostJsonAsync<PostModel<Employee>>(CreateEmployeeUrl, 
                     JsonConvert.SerializeObject(employeeDto))).Data;
                 Console.WriteLine("Employee has been successfully created with id " + employee.Id);
                 return employee;
@@ -267,13 +269,13 @@ namespace ConsoleApp
                 "Please enter a number for your department or 'X' to exit", 0, int.MaxValue, "X");
             if (wasCancelled) departmentNumber = null;
 
-            var departmentDto = new CreateDepartmentRequestDto()
+            var departmentDto = new CreateDepartmentModel()
             {
                 Name = departmentName,
                 Number = departmentNumber == null ? null : departmentNumber.ToString()
             };
 
-            var department = (await PostJsonAsync<PostResponse<Department>>(DepartmentsUrl, 
+            var department = (await PostJsonAsync<PostModel<Department>>(DepartmentsUrl, 
                 JsonConvert.SerializeObject(departmentDto))).Data;
             Console.WriteLine("Department has been successfully created with id " + department.Id);
             return department;
@@ -286,12 +288,12 @@ namespace ConsoleApp
                 LiteralSpaceStringRegexp);
             if (groupName == "0") return null;
             
-            var groupDto = new CreateEmployeeGroupRequestDto()
+            var groupDto = new CreateEmployeeGroupModel()
             {
                 Name = groupName
             };
 
-            var group = (await PostJsonAsync<PostResponse<EmployeeGroup>>(EmployeeGroupsUrl, 
+            var group = (await PostJsonAsync<PostModel<EmployeeGroup>>(EmployeeGroupsUrl, 
                 JsonConvert.SerializeObject(groupDto))).Data;
             Console.WriteLine("Employee group has been successfully created with id " + group.Id);
             return group;

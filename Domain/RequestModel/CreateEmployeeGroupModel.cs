@@ -1,9 +1,9 @@
 ﻿using System;
 using Newtonsoft.Json;
 
-namespace Domain
+namespace Domain.RequestModel
 {
-    public class CreateEmployeeGroupRequestDto
+    public class CreateEmployeeGroupModel
     {
         [JsonProperty("name")]
         public String Name { get; set; } = default!;

@@ -1,9 +1,9 @@
 ﻿using System;
 using Newtonsoft.Json;
 
-namespace Domain
+namespace Domain.ResponseModel
 {
-    public class AuthorizationResponse
+    public class AuthorizationModel
     {
         [JsonProperty("id_token")]
         public String IdToken { get; set; } = default!;

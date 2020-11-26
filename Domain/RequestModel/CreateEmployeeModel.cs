@@ -1,10 +1,9 @@
-﻿using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
+﻿using System;
+using Newtonsoft.Json;
 
-namespace Domain
+namespace Domain.RequestModel
 {
-    public class CreateEmployeeRequestDto
+    public class CreateEmployeeModel
     {
         [JsonProperty("hiredFrom")]
         public String? HiredFrom { get; set; }
