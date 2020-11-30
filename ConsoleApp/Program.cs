@@ -83,7 +83,7 @@ namespace ConsoleApp
                 }
                 catch (Exception ex)
                 {
-                    Console.Error.WriteLine(ex);
+                    Console.Error.WriteLine(ex.Message);
                     return -1;
                 }
             } while (breakPoint != -1);
@@ -118,7 +118,8 @@ namespace ConsoleApp
                     if (department != null) _departmentId = department.Id;
                     return 0;
                 case 2:
-                    await GetAvailableRecords<Department>(_departmentIds, DepartmentsUrl);
+                    _departments = await GetAvailableRecords<Department>(_departmentIds, DepartmentsUrl);
+                    Console.WriteLine(_departments == null ? "Retrieving department records was cancelled or failed!" : "Success retrievng department records!");
                     return 0;
                 case 3:
                     var employeeGroup = await CreateEmployeeGroup();
@@ -230,15 +231,15 @@ namespace ConsoleApp
         {
             try
             {
-                var records = (await GetAsync<GetAllModel<T>>(url)).DataUnits;
+                var records = (await GetAsync<GetAllModel<T>>(url));
                 if (records == null)
                 {
                     Console.WriteLine("No records found!");
                     return null;
                 }
 
-                idList = records.Select(r => r.Id).ToList();
-                return records;
+                idList = records.DataUnits.Select(r => r.Id).ToList();
+                return records.DataUnits;
             }
             catch (Exception e)
             {
@@ -417,7 +418,8 @@ namespace ConsoleApp
             return group;
         }
 
-        public static async Task<TResponse> PostJsonAsync<TResponse>(string url, string content)
+        public static async Task<TResponse?> PostJsonAsync<TResponse>(string url, string content)
+            where TResponse : class
         {
             using var client = new HttpClient {BaseAddress = new Uri(PlandayUrl)};
             var config = GetPlandayConfig();
@@ -429,18 +431,26 @@ namespace ConsoleApp
             try
             {
                 var response = await client.PostAsync(url, new StringContent(content, Encoding.UTF8, "application/json"));
-                response.EnsureSuccessStatusCode();
-                var responseData = await response.Content.ReadAsStringAsync();
-
-                return JsonConvert.DeserializeObject<TResponse>(responseData);
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($"Request has failed with the status code {response.StatusCode}. Info: {response.Content}");
+                    return null;
+                } else
+                {
+                    var responseData = await response.Content.ReadAsStringAsync();
+                    return JsonConvert.DeserializeObject<TResponse>(responseData);
+                }
             } catch (Exception e)
             {
                 Console.WriteLine("Exception: " + e.Message);
-                throw;
+                Console.WriteLine(e.Data);
+                return null;
             }
         }
         
-        public static async Task<TResponse> PostUrlEncodedAsync<TResponse>(string url, FormUrlEncodedContent content)
+        public static async Task<TResponse?> PostUrlEncodedAsync<TResponse>(string url, FormUrlEncodedContent content)
+            where TResponse : class
         {
             using var client = new HttpClient {BaseAddress = new Uri(AuthorizationUrl)};
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
@@ -448,18 +458,26 @@ namespace ConsoleApp
             try
             {
                 var response = await client.PostAsync(url, content);
-                response.EnsureSuccessStatusCode();
-                var responseData = await response.Content.ReadAsStringAsync();
 
-                return JsonConvert.DeserializeObject<TResponse>(responseData);
+                if (!response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($"Request has failed with the status code {response.StatusCode}. Info: {response.Content}");
+                    return null;
+                } else
+                {
+                    var responseData = await response.Content.ReadAsStringAsync();
+                    return JsonConvert.DeserializeObject<TResponse>(responseData);
+                }
             } catch (Exception e)
             {
                 Console.WriteLine("Exception: " + e.Message);
-                throw;
+                Console.WriteLine(e.Data);
+                return null;
             }
         }
 
-        public static async Task<TResponse> GetAsync<TResponse>(string url)
+        public static async Task<TResponse?> GetAsync<TResponse>(string url)
+            where TResponse : class
         {
             using var client = new HttpClient();
             var config = GetPlandayConfig();
@@ -472,14 +490,23 @@ namespace ConsoleApp
             try
             {
                 HttpResponseMessage response = await client.GetAsync(url);
-                response.EnsureSuccessStatusCode();
-                var responseData = await response.Content.ReadAsStringAsync();
-                return JsonConvert.DeserializeObject<TResponse>(responseData);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($"Request has failed with the status code {response.StatusCode}. Info: {response.Content}");
+                    return null;
+                }
+                else
+                {
+                    var responseData = await response.Content.ReadAsStringAsync();
+                    return JsonConvert.DeserializeObject<TResponse>(responseData);
+                }
             }
             catch (Exception e)
             {
                 Console.WriteLine("Exception: " + e.Message);
-                throw;
+                Console.WriteLine(e.Data);
+                return null;
             }
         }
 
