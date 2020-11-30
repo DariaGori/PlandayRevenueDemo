@@ -13,7 +13,8 @@ Inside the secrets.json file create the following structure to provide your cred
 ~~~
 {
   "ApiConfiguration:RefreshToken": "<your_planday_API_access_token>",
-  "ApiConfiguration:XClientId": "<your_planday_API_access_app_ID>"
+  "ApiConfiguration:XClientId": "<your_planday_API_access_app_ID>",
+  "ConnectionStrings.MCS": "<MCS_DB_connection string>"
 }
 ~~~
 

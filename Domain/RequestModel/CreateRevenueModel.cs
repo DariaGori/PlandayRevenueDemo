@@ -8,7 +8,7 @@ namespace Domain.RequestModel
         [JsonProperty("description")]
         public String Description { get; set; } = default!;
         [JsonProperty("turnover")]
-        public double Turnover { get; set; }
+        public Decimal Turnover { get; set; }
         [JsonProperty("revenueUnitId")]
         public int RevenueUnitId { get; set; }
         [JsonProperty("date")]

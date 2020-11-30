@@ -84,7 +84,7 @@ namespace Helper
             } while (true);
         }
 
-        public static (Double input, bool wasCancelled) GetUserDoubleInput(string prompt, Double minValue, Double maxValue, string? exitValue)
+        public static (Decimal input, bool wasCancelled) GetUserDecimalInput(string prompt, Decimal minValue, Decimal maxValue, string? exitValue)
         {
             do
             {
@@ -96,15 +96,15 @@ namespace Helper
 
                 if (inputLine != null && inputLine == exitValue) return (0, true);
 
-                if (Double.TryParse(inputLine, out var userDouble))
+                if (Decimal.TryParse(inputLine, out var userDecimal))
                 {
-                    if (userDouble > maxValue || userDouble < minValue)
+                    if (userDecimal > maxValue || userDecimal < minValue)
                     {
                         Console.WriteLine($"{inputLine} is not a valid parameter! Please try again");
                     }
                     else
                     {
-                        return (userDouble, false);
+                        return (userDecimal, false);
                     }
                 }
                 else

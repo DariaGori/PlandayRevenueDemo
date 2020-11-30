@@ -13,6 +13,10 @@ using System.Threading.Tasks;
 using Domain.Contract;
 using Domain.RequestModel;
 using Domain.ResponseModel;
+using DAL;
+using Microsoft.EntityFrameworkCore;
+using System.Linq;
+using Nito.AsyncEx;
 
 namespace ConsoleApp
 {
@@ -37,35 +41,60 @@ namespace ConsoleApp
         private static List<int> _departmentIds = new List<int>();
         private static List<int> _employeeGroupIds = new List<int>();
         private static List<int> _revenueUnitIds = new List<int>();
-        
+        private static List<Department>? _departments = new List<Department>();
+        private static List<RevenueUnit>? _revenueUnits = new List<RevenueUnit>();
+
         private const string EmailRegexp = @"^[\w!#$%&'*+\-/=?\^_`{|}~]+(\.[\w!#$%&'*+\-/=?\^_`{|}~]+)*" + "@"
                                            + @"((([\-\w]+\.)+[a-zA-Z]{2,4})|(([0-9]{1,3}\.){3}[0-9]{1,3}))$";
 
         private const string DateRegexp = @"^\d{4}-((0[1-9])|(1[012]))-((0[1-9]|[12]\d)|3[01])$";
         private const string LiteralSpaceStringRegexp = @"^[0-9A-Za-z ]+$";
 
-        static void Main()
+        private static readonly string _query = @"SELECT 
+            SUM([Transaction].TotalNetSum) as NetSum,
+            SUM([Transaction].TotalGrossSum) as GrossSum,
+            [Theatre].ID as TheatreID,
+            [Theatre].[Name] as TheatreName,
+            [SalesPoint].AccountingCode as SalesPointAccountingCode
+
+            FROM [Transaction] WITH (READUNCOMMITTED)
+            INNER JOIN [SalesPoint] WITH (READUNCOMMITTED) ON [Transaction].SalesPointID = [SalesPoint].ID
+            INNER JOIN [Theatre] WITH (READUNCOMMITTED) ON [SalesPoint].TheatreID = [Theatre].ID
+
+            WHERE [Transaction].dtInvoice = @dtInvoice
+
+            GROUP BY [Theatre].ID,
+            [Theatre].[Name],
+            [SalesPoint].AccountingCode;";
+
+        static int Main()
         {
-            var input = "";
+            GetConfig();
+            int breakPoint;
             RefreshAccessToken();
             Console.WriteLine("You have successfully gained access to Planday! Press ENTER to continue");
             Console.ReadLine();
-            
+
             do
             {
-                MainAsync();
-                Console.WriteLine("---------------------------------------");
-                Console.WriteLine("Press ENTER to continue or 'X' to exit");
-                input = Console.ReadLine();
-            } while (input != "X");
-            
-            Console.ReadLine();
+                try
+                {
+                    breakPoint = AsyncContext.Run(() => MainAsync());
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine(ex);
+                    return -1;
+                }
+            } while (breakPoint != -1);
+
+            return breakPoint;
         }
 
-        static async void MainAsync()
+        static async Task<int> MainAsync()
         {
             int userInput;
-                
+
             Console.WriteLine("--------------------------------");
             Console.WriteLine("Please select an action: ");
             Console.WriteLine("1) Create a department");
@@ -75,48 +104,128 @@ namespace ConsoleApp
             Console.WriteLine("5) Create an employee");
             Console.WriteLine("6) Check out available revenue units");
             Console.WriteLine("7) Create a revenue record");
+            Console.WriteLine("8) Create revenue records from MCS data");
             Console.WriteLine("X) Exit");
             Console.WriteLine("--------------------------------");
 
             (userInput, _) = UserInputHelper.GetUserIntInput(
-                "Please choose your action (or X to exit): ", 1, 7, "x");
+                "Please choose your action (or X to exit): ", 1, 8, "x");
 
             switch (userInput)
             {
                 case 1:
                     var department = await CreateDepartment();
                     if (department != null) _departmentId = department.Id;
-                    break;
+                    return 0;
                 case 2:
-                    GetAvailableRecords<Department>(_departmentIds, DepartmentsUrl);
-                    break;
+                    await GetAvailableRecords<Department>(_departmentIds, DepartmentsUrl);
+                    return 0;
                 case 3:
                     var employeeGroup = await CreateEmployeeGroup();
                     if (employeeGroup != null) _employeeGroupId = employeeGroup.Id;
                     else Console.WriteLine("Employee Group creation was cancelled!");
-                    break;
+                    return 0;
                 case 4:
-                    GetAvailableRecords<EmployeeGroup>(_employeeGroupIds, EmployeeGroupsUrl);
+                    await GetAvailableRecords<EmployeeGroup>(_employeeGroupIds, EmployeeGroupsUrl);
                     break;
                 case 5:
                     var employee = await CreateEmployee();
                     if (employee == null) Console.WriteLine("Employee creation was cancelled!");
-                    break;
+                    return 0;
                 case 6:
-                    GetAvailableRecords<RevenueUnit>(_revenueUnitIds, RevenueUnitsUrl);
-                    break;
+                    await GetAvailableRecords<RevenueUnit>(_revenueUnitIds, RevenueUnitsUrl);
+                    return 0;
                 case 7:
-                    var revenue = await CreateRevenue();
-                    Console.WriteLine(revenue == null ? "Revenue unit creation was cancelled!" : 
-                        "Revenue item for revenue unit " + revenue.RevenueUnitId + " was successfully created");
-                    break;
+                    var revenue = await CreateRevenueFromUserInput();
+                    Console.WriteLine(revenue == null ? "Revenue creation was cancelled!" : 
+                        $"Revenue item for revenue unit {revenue.RevenueUnitId} was successfully created");
+                    return 0;
+                case 8:
+                    var revenueList = await CreateRevenueFromMCS();
+                    Console.WriteLine(revenueList == null ? "Revenue creation was cancelled!" :
+                        "Revenue records were successfully created!");
+                    return 0;
                 default:
                     Console.WriteLine("Closing down...");
-                    break;
+                    return -1;
             }
+
+            return -1;
         }
 
-        static async void GetAvailableRecords<T>(ICollection<int> idList, string url)
+        static async Task<List<Revenue>?> CreateRevenueFromMCS()
+        {
+            var date = UserInputHelper.GetUserStringInput("Please enter the date for which the records should be retrieved in the YYYY-MM-DD format or '0' to exit",
+                10, "0", DateRegexp);
+
+            if (date == "0") return null;
+
+            var contextOptions = new DbContextOptionsBuilder<AppDbContext>()
+                .UseSqlServer(Configuration.GetSection("ConnectionStrings.MCS").Value)
+                .Options;
+
+            using var context = new AppDbContext(contextOptions);
+
+            var revenueRecords = context.MCSRevenues
+                .FromSqlRaw($"DECLARE @dtInvoice as DateTime = '{date}';" + _query)
+                .ToList();
+
+            if (revenueRecords == null)
+            {
+                Console.WriteLine("No revenue records found in the database for the date selected!");
+                return null;
+            } else
+            {
+                Console.WriteLine("MCS records successfully retrieved!");
+                Console.WriteLine("Please wait for revenue creation...");
+            }
+
+            _departments = await GetAvailableRecords<Department>(_departmentIds, DepartmentsUrl);
+
+            if (_departments == null)
+            {
+                Console.WriteLine("Retrieving available departments failed!");
+                return null;
+            }
+
+            var departmentNames = _departments.Select(d => d.Name).ToList();
+            var revenueList = new List<Revenue>();
+
+            foreach (var record in revenueRecords)
+            {
+                if (departmentNames.Contains(record.TheatreName))
+                {
+                    _revenueUnits = await GetAvailableRecords<RevenueUnit>(_revenueUnitIds, RevenueUnitsUrl);
+                    if (_revenueUnits == null)
+                    {
+                        Console.WriteLine("Retrieving available revenue units failed!");
+                        return null;
+                    }
+
+                    var revenueUnit = _revenueUnits
+                        .Where(r => r.DepartmentId == _departments.Where(d => d.Name == record.TheatreName).FirstOrDefault().Id)
+                        .FirstOrDefault();
+
+                    if (revenueUnit.Equals(default(RevenueUnit)))
+                    {
+                        Console.WriteLine($"No revenue unit was found for the department {record.TheatreName}");
+                        continue;
+                    }
+
+                    var revenue = await CreateRevenue($"{record.TheatreID} - {date}", date, record.NetSum, revenueUnit.Id);
+                    Console.WriteLine($"A revenue record for the revenue unit {revenue!.RevenueUnitId} successfully created");
+                    revenueList.Add(revenue);
+                } else
+                {
+                    Console.WriteLine(departmentNames);
+                    Console.WriteLine($"No department with the name {record.TheatreName} exists in Planday!");
+                }
+            }
+
+            return revenueList;
+        }
+
+        static async Task<List<T>?> GetAvailableRecords<T>(ICollection<int> idList, string url)
         where T : class, IResponseData
         {
             try
@@ -125,22 +234,20 @@ namespace ConsoleApp
                 if (records == null)
                 {
                     Console.WriteLine("No records found!");
-                    return;
+                    return null;
                 }
-                
-                foreach (var record in records)
-                {
-                    Console.WriteLine($"{record.Id} - {record.Name}");
-                    idList.Add(record.Id);
-                }
+
+                idList = records.Select(r => r.Id).ToList();
+                return records;
             }
             catch (Exception e)
             {
                 Console.WriteLine("Exception: " + e.Message);
+                throw;
             }
         }
 
-        static async Task<Revenue?> CreateRevenue()
+        static async Task<Revenue?> CreateRevenueFromUserInput()
         {
             var date = UserInputHelper.GetUserStringInput("Please enter the date the Revenue was generated or '0' to exit", 
                 10, "0", DateRegexp);
@@ -151,26 +258,37 @@ namespace ConsoleApp
             if (description == "0") return null;
 
             bool wasCancelled;
-            double turnover;
-            (turnover, wasCancelled) = UserInputHelper.GetUserDoubleInput(
-                "Please enter the value for the turnover or 'X' to exit", 0, Double.MaxValue, "x");
+            Decimal turnover;
+            (turnover, wasCancelled) = UserInputHelper.GetUserDecimalInput(
+                "Please enter the value for the turnover or 'X' to exit", 0, Decimal.MaxValue, "x");
             if (wasCancelled) return null;
-            
+
+            await GetAvailableRecords<RevenueUnit>(_revenueUnitIds, RevenueUnitsUrl);
+
+            Console.WriteLine($"Available revenue unit IDs: {_revenueUnitIds}");
+
+            int revenueUnitId;
+            (revenueUnitId, wasCancelled) = UserInputHelper.GetUserIntInput(
+                    "Please enter your Revenue Unit ID or 'X' to exit", 0, Int32.MaxValue, "x",
+                    _revenueUnitIds);
+            if (wasCancelled) return null;
+
+            return await CreateRevenue(description, date, turnover, revenueUnitId);
+        }
+
+        static async Task<Revenue?> CreateRevenue(string description, string date, Decimal turnover, int revenueUnitId)
+        {
             var revenueDto = new CreateRevenueModel()
             {
                 Description = description,
                 Date = date,
-                Turnover = turnover
+                Turnover = turnover,
+                RevenueUnitId = revenueUnitId
             };
 
             try
             {
-                (revenueDto.RevenueUnitId, wasCancelled) = UserInputHelper.GetUserIntInput(
-                    "Please enter your Revenue Unit ID or 'X' to exit", 0, Int32.MaxValue, "x", 
-                    _revenueUnitIds);
-                if (wasCancelled) return null;
-                
-                return (await PostJsonAsync<PostModel<Revenue>>(CreateRevenueUrl, 
+                return (await PostJsonAsync<PostModel<Revenue>>(CreateRevenueUrl,
                     JsonConvert.SerializeObject(revenueDto))).Data;
             }
             catch (Exception e)
@@ -182,7 +300,7 @@ namespace ConsoleApp
 
         static async void RefreshAccessToken()
         {
-            var config = GetConfig();
+            var config = GetPlandayConfig();
 
             FormUrlEncodedContent content = new FormUrlEncodedContent(new Dictionary<string, string>()
             {
@@ -302,7 +420,7 @@ namespace ConsoleApp
         public static async Task<TResponse> PostJsonAsync<TResponse>(string url, string content)
         {
             using var client = new HttpClient {BaseAddress = new Uri(PlandayUrl)};
-            var config = GetConfig();
+            var config = GetPlandayConfig();
 
             client.DefaultRequestHeaders.Add("Authorization", "Bearer " + _accessToken);
             client.DefaultRequestHeaders.Add("X-ClientId", config.XClientId);
@@ -344,7 +462,7 @@ namespace ConsoleApp
         public static async Task<TResponse> GetAsync<TResponse>(string url)
         {
             using var client = new HttpClient();
-            var config = GetConfig();
+            var config = GetPlandayConfig();
 
             client.BaseAddress = new Uri(PlandayUrl);
             client.DefaultRequestHeaders.Add("Authorization", "Bearer " + _accessToken);
@@ -365,13 +483,16 @@ namespace ConsoleApp
             }
         }
 
-        static ApiConfiguration GetConfig()
+        static void GetConfig()
         {
             var builder = new ConfigurationBuilder();
             builder.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
             builder.AddUserSecrets<Program>();
             Configuration = builder.Build();
+        }
 
+        static ApiConfiguration GetPlandayConfig()
+        {
             IServiceCollection services = new ServiceCollection();
             services
                 .Configure<ApiConfiguration>(Configuration.GetSection(nameof(ApiConfiguration)))

@@ -11,12 +11,15 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Helper", "Helper\Helper.csp
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{A7AA8059-8136-45E5-8F75-1A043D48DAD2}"
 	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+		.gitignore = .gitignore
 		appsettings.json = appsettings.json
 		README.md = README.md
-		.gitignore = .gitignore
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Domain.Contract", "Domain.Contract\Domain.Contract.csproj", "{5AED36DE-8487-4B91-BB8C-CA19CB70AABA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Domain.Contract", "Domain.Contract\Domain.Contract.csproj", "{5AED36DE-8487-4B91-BB8C-CA19CB70AABA}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DAL", "DAL\DAL.csproj", "{94EE289E-EDB2-462B-B21E-A8E75A3B842F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -40,6 +43,10 @@ Global
 		{5AED36DE-8487-4B91-BB8C-CA19CB70AABA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5AED36DE-8487-4B91-BB8C-CA19CB70AABA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5AED36DE-8487-4B91-BB8C-CA19CB70AABA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{94EE289E-EDB2-462B-B21E-A8E75A3B842F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{94EE289E-EDB2-462B-B21E-A8E75A3B842F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{94EE289E-EDB2-462B-B21E-A8E75A3B842F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{94EE289E-EDB2-462B-B21E-A8E75A3B842F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
