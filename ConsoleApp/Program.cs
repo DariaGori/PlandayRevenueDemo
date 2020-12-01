@@ -72,6 +72,13 @@ namespace ConsoleApp
             GetConfig();
             int breakPoint;
             RefreshAccessToken();
+
+            if (_accessToken == "")
+            {
+                Console.WriteLine("Access to Planday failed");
+                return -1;
+            }
+            
             Console.WriteLine("You have successfully gained access to Planday! Press ENTER to continue");
             Console.ReadLine();
 
@@ -156,7 +163,8 @@ namespace ConsoleApp
 
         static async Task<List<Revenue>?> CreateRevenueFromMCS()
         {
-            var date = UserInputHelper.GetUserStringInput("Please enter the date for which the records should be retrieved in the YYYY-MM-DD format or '0' to exit",
+            var date = UserInputHelper.GetUserStringInput(
+                "Please enter the date for which the records should be retrieved in the YYYY-MM-DD format or '0' to exit",
                 10, "0", DateRegexp);
 
             if (date == "0") return null;
@@ -171,15 +179,14 @@ namespace ConsoleApp
                 .FromSqlRaw($"DECLARE @dtInvoice as DateTime = '{date}';" + _query)
                 .ToList();
 
-            if (revenueRecords == null)
+            if (revenueRecords.Count == 0)
             {
                 Console.WriteLine("No revenue records found in the database for the date selected!");
                 return null;
-            } else
-            {
-                Console.WriteLine("MCS records successfully retrieved!");
-                Console.WriteLine("Please wait for revenue creation...");
             }
+
+            Console.WriteLine("MCS records successfully retrieved!");
+            Console.WriteLine("Please wait for revenue creation...");
 
             _departments = await GetAvailableRecords<Department>(_departmentIds, DepartmentsUrl);
 
@@ -204,10 +211,10 @@ namespace ConsoleApp
                     }
 
                     var revenueUnit = _revenueUnits
-                        .Where(r => r.DepartmentId == _departments.Where(d => d.Name == record.TheatreName).FirstOrDefault().Id)
-                        .FirstOrDefault();
+                        .FirstOrDefault(r => r.DepartmentId == _departments
+                            .FirstOrDefault(d => d.Name == record.TheatreName)!.Id);
 
-                    if (revenueUnit.Equals(default(RevenueUnit)))
+                    if (revenueUnit!.Equals(default(RevenueUnit)))
                     {
                         Console.WriteLine($"No revenue unit was found for the department {record.TheatreName}");
                         continue;
@@ -231,8 +238,8 @@ namespace ConsoleApp
         {
             try
             {
-                var records = (await GetAsync<GetAllModel<T>>(url));
-                if (records == null)
+                var records = await GetAsync<GetAllModel<T>>(url);
+                if (records?.DataUnits == null)
                 {
                     Console.WriteLine("No records found!");
                     return null;
@@ -289,8 +296,10 @@ namespace ConsoleApp
 
             try
             {
-                return (await PostJsonAsync<PostModel<Revenue>>(CreateRevenueUrl,
-                    JsonConvert.SerializeObject(revenueDto))).Data;
+                var revenueResult = await PostJsonAsync<PostModel<Revenue>>(CreateRevenueUrl,
+                    JsonConvert.SerializeObject(revenueDto));
+
+                return revenueResult?.Data;
             }
             catch (Exception e)
             {
@@ -313,6 +322,9 @@ namespace ConsoleApp
             try
             {
                 var authCredentials = await PostUrlEncodedAsync<AuthorizationModel>(RefreshTokenUrl, content);
+                
+                if (authCredentials == null) return;
+                
                 _accessToken = authCredentials.AccessToken;
             }
             catch (Exception e)
@@ -363,10 +375,13 @@ namespace ConsoleApp
 
             try
             {
-                var employee = (await PostJsonAsync<PostModel<Employee>>(CreateEmployeeUrl, 
-                    JsonConvert.SerializeObject(employeeDto))).Data;
-                Console.WriteLine("Employee has been successfully created with id " + employee.Id);
-                return employee;
+                var employeeResponse = await PostJsonAsync<PostModel<Employee>>(CreateEmployeeUrl, 
+                    JsonConvert.SerializeObject(employeeDto));
+                
+                if (employeeResponse?.Data == null) return null;
+                
+                Console.WriteLine("Employee has been successfully created with id " + employeeResponse.Data.Id);
+                return employeeResponse.Data;
             }
             catch (Exception e)
             {
@@ -394,10 +409,13 @@ namespace ConsoleApp
                 Number = departmentNumber == null ? null : departmentNumber.ToString()
             };
 
-            var department = (await PostJsonAsync<PostModel<Department>>(DepartmentsUrl, 
-                JsonConvert.SerializeObject(departmentDto))).Data;
-            Console.WriteLine("Department has been successfully created with id " + department.Id);
-            return department;
+            var departmentResponse = await PostJsonAsync<PostModel<Department>>(DepartmentsUrl, 
+                JsonConvert.SerializeObject(departmentDto));
+
+            if (departmentResponse?.Data == null) return null;
+            
+            Console.WriteLine("Department has been successfully created with id " + departmentResponse.Data.Id);
+            return departmentResponse.Data;
         }
 
         static async Task<EmployeeGroup?> CreateEmployeeGroup()
@@ -412,10 +430,12 @@ namespace ConsoleApp
                 Name = groupName
             };
 
-            var group = (await PostJsonAsync<PostModel<EmployeeGroup>>(EmployeeGroupsUrl, 
-                JsonConvert.SerializeObject(groupDto))).Data;
-            Console.WriteLine("Employee group has been successfully created with id " + group.Id);
-            return group;
+            var groupResponse = await PostJsonAsync<PostModel<EmployeeGroup>>(EmployeeGroupsUrl, 
+                JsonConvert.SerializeObject(groupDto));
+
+            if (groupResponse?.Data == null) return null;
+            Console.WriteLine("Employee group has been successfully created with id " + groupResponse.Data.Id);
+            return groupResponse.Data;
         }
 
         public static async Task<TResponse?> PostJsonAsync<TResponse>(string url, string content)
@@ -479,10 +499,9 @@ namespace ConsoleApp
         public static async Task<TResponse?> GetAsync<TResponse>(string url)
             where TResponse : class
         {
-            using var client = new HttpClient();
             var config = GetPlandayConfig();
-
-            client.BaseAddress = new Uri(PlandayUrl);
+            using var client = new HttpClient
+            { BaseAddress = new Uri(PlandayUrl) };
             client.DefaultRequestHeaders.Add("Authorization", "Bearer " + _accessToken);
             client.DefaultRequestHeaders.Add("X-ClientId", config.XClientId);
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
